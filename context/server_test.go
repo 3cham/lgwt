@@ -2,6 +2,7 @@ package context
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,9 +15,31 @@ type SpyStore struct {
 	t         *testing.T
 }
 
-func (s *SpyStore) Fetch() string {
-	time.Sleep(100 * time.Millisecond)
-	return s.response
+func (s *SpyStore) Fetch(ctx context.Context) (string, error) {
+	data := make(chan string, 1)
+
+	go func() {
+		var result string
+		for _, c := range s.response {
+			select {
+			case <- ctx.Done():
+				s.t.Log("spy store got canceled")
+				s.cancelled = true
+				return
+			default:
+				time.Sleep(10 * time.Millisecond)
+				result += string(c)
+			}
+		}
+		data <- result
+	}()
+	select {
+	case res := <-data:
+		return res, nil
+	case <-ctx.Done():
+		s.cancelled = true
+		return "", ctx.Err()
+	}
 }
 
 func (s *SpyStore) Cancel() {
@@ -37,10 +60,28 @@ func (s *SpyStore) assertShouldCancel() {
 	}
 }
 
+type SpyResponseWriter struct {
+	written bool
+}
+
+func (s *SpyResponseWriter) Header() http.Header {
+	s.written = true
+	return nil
+}
+
+func (s *SpyResponseWriter) Write([]byte) (int, error) {
+	s.written = true
+	return 0, errors.New("Not implemented")
+}
+
+func (s *SpyResponseWriter) WriteHeader(statusCode int) {
+	s.written = true
+}
+
 func TestHandler(t *testing.T) {
 	data := "Hello, world"
 
-	t.Run("StubStore should return correct string", func(t *testing.T) {
+	t.Run("SpyStore should return correct string", func(t *testing.T) {
 		store := &SpyStore{data, false, t}
 		s := Server(store)
 
@@ -60,7 +101,7 @@ func TestHandler(t *testing.T) {
 		s := Server(store)
 
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
-		response := httptest.NewRecorder()
+		response := &SpyResponseWriter{}
 
 		cancelingCtx, cancel := context.WithCancel(request.Context())
 		time.AfterFunc(5*time.Millisecond, cancel)
@@ -69,5 +110,8 @@ func TestHandler(t *testing.T) {
 		s.ServeHTTP(response, request)
 
 		store.assertShouldCancel()
+		if response.written {
+			t.Fatalf("A response should not be written")
+		}
 	})
 }

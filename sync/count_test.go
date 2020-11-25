@@ -1,5 +1,9 @@
 package sync
 
+/**
+Use channels when passing ownership of data
+Use mutexes for managing state
+*/
 import (
 	"sync"
 	"testing"
@@ -14,7 +18,7 @@ func TestCount(t *testing.T) {
 		counter.Inc()
 		counter.Inc()
 
-		assertCounter(t, counter, 3)
+		assertCounter(t, &counter, 3)
 	})
 	t.Run("Incrementing counter concurrently", func(t *testing.T) {
 		counter := Counter{sync.Mutex{}, 0}
@@ -30,11 +34,11 @@ func TestCount(t *testing.T) {
 			}(&wg)
 		}
 		wg.Wait()
-		assertCounter(t, counter, threads)
+		assertCounter(t, &counter, threads)
 	})
 }
 
-func assertCounter(t *testing.T, counter Counter, expected int) {
+func assertCounter(t *testing.T, counter *Counter, expected int) {
 	t.Helper()
 	if counter.Value != expected {
 		t.Fatalf("Wrong value for counter after incrementing, got %d, expected %d", counter.Value, expected)

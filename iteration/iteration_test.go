@@ -2,7 +2,6 @@ package iteration
 
 import (
 	"fmt"
-	intergers2 "github.com/3cham/lgwt/intergers"
 	"testing"
 )
 
@@ -24,8 +23,6 @@ func TestIteration(t *testing.T) {
 }
 
 func BenchmarkRepeat(b *testing.B) {
-	x := intergers2.Add(5, 6)
-	fmt.Println(x)
 	for i := 0; i < b.N; i++ {
 		Repeat("a")
 	}

@@ -8,20 +8,10 @@ import (
 	"time"
 )
 
-type StubStore struct {
-	response string
-}
-
-func (s *StubStore) Fetch() string {
-	return s.response
-}
-
-func (s *StubStore) Cancel() {
-}
-
 type SpyStore struct {
 	response  string
 	cancelled bool
+	t         *testing.T
 }
 
 func (s *SpyStore) Fetch() string {
@@ -33,10 +23,25 @@ func (s *SpyStore) Cancel() {
 	s.cancelled = true
 }
 
+func (s *SpyStore) assertShouldNotCancel() {
+	s.t.Helper()
+	if s.cancelled {
+		s.t.Fatalf("Request should not be cancelled")
+	}
+}
+
+func (s *SpyStore) assertShouldCancel() {
+	s.t.Helper()
+	if !s.cancelled {
+		s.t.Fatalf("Request should be cancelled")
+	}
+}
+
 func TestHandler(t *testing.T) {
+	data := "Hello, world"
+
 	t.Run("StubStore should return correct string", func(t *testing.T) {
-		data := "Hello, world"
-		store := &SpyStore{data, false}
+		store := &SpyStore{data, false, t}
 		s := Server(store)
 
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -44,17 +49,14 @@ func TestHandler(t *testing.T) {
 
 		s.ServeHTTP(response, request)
 
-		if store.cancelled {
-			t.Fatalf("Request should not be cancelled")
-		}
+		store.assertShouldNotCancel()
 		if response.Body.String() != data {
 			t.Fatalf("Wrong result, expected %s, got %s", data, response.Body.String())
 		}
 	})
 
 	t.Run("Cancel request should return empty string", func(t *testing.T) {
-		data := "Hello, world"
-		store := &SpyStore{data, false}
+		store := &SpyStore{data, false, t}
 		s := Server(store)
 
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -66,9 +68,6 @@ func TestHandler(t *testing.T) {
 		request = request.WithContext(cancelingCtx)
 		s.ServeHTTP(response, request)
 
-		if !store.cancelled {
-			t.Fatalf("Store is not cancelled")
-		}
+		store.assertShouldCancel()
 	})
-
 }

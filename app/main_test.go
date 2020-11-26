@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -45,7 +46,7 @@ func getScoreRequest(player string) (*http.Request, error) {
 	return http.NewRequest(http.MethodGet, fmt.Sprintf("/players/%s", player), nil)
 }
 
-func postScoreRequest(player string, score int) (*http.Request, error) {
+func postScoreRequest(player string) (*http.Request, error) {
 	return http.NewRequest(http.MethodPost, fmt.Sprintf("/players/%s", player), nil)
 }
 
@@ -87,7 +88,7 @@ func TestUpdatePlayerStore(t *testing.T) {
 	server := &PlayerServer{&store}
 
 	t.Run("POST score should return accepted", func(t *testing.T) {
-		request, _ := postScoreRequest("C", 10)
+		request, _ := postScoreRequest("C")
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, request)
@@ -98,5 +99,27 @@ func TestUpdatePlayerStore(t *testing.T) {
 		if !reflect.DeepEqual(store.updateScoreCalls, expectedScoreCalls) {
 			t.Fatalf("wrong update score calls, got %v, expected %v", store.updateScoreCalls, expectedScoreCalls)
 		}
+	})
+}
+
+func TestUpdateAndShowPlayerScore(t *testing.T) {
+	store := InMemoryStore{sync.Mutex{}, make(map[string]int)}
+	server := &PlayerServer{&store}
+	player := "C"
+
+	t.Run("Update and show score of the same play should return consistent result", func(t *testing.T) {
+		request, _ := postScoreRequest(player)
+		// Post 3 times win for C
+		server.ServeHTTP(httptest.NewRecorder(), request)
+		server.ServeHTTP(httptest.NewRecorder(), request)
+		server.ServeHTTP(httptest.NewRecorder(), request)
+
+		// Get C's score
+		request, _ = getScoreRequest(player)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, request)
+
+		assertRespondedStatusCode(t, response, http.StatusOK)
+		assertRespondedScore(t, response, "3")
 	})
 }

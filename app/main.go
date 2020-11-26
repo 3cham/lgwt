@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 var (
@@ -21,12 +22,28 @@ type PlayerServer struct {
 	store PlayerStore
 }
 
-type InMemoryStore struct {}
+type InMemoryStore struct {
+	lock sync.Mutex
+	scores map[string]int
+}
 func (s *InMemoryStore) GetPlayerScore(name string) (int, error) {
-	return 123, nil
+	score, found := s.scores[name]
+	if !found {
+		return 0, ErrPlayerNotFound
+	}
+	return score, nil
 }
 
 func (s *InMemoryStore) UpdatePlayerScore(name string) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	currentScore, found := s.scores[name]
+
+	if !found {
+		s.scores[name] = 1
+	} else {
+		s.scores[name] = currentScore + 1
+	}
 }
 
 func (p *PlayerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +71,7 @@ func (p *PlayerServer) updateScore(w http.ResponseWriter, player string) {
 }
 
 func main() {
-	server := &PlayerServer{&InMemoryStore{}}
+	server := &PlayerServer{&InMemoryStore{sync.Mutex{}, make(map[string]int)}}
 
 	if err := http.ListenAndServe(":5000", server); err != nil {
 		log.Fatalf("could not listen on port 5000 %v", err)

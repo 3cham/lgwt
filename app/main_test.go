@@ -6,14 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"sync"
 	"testing"
 )
 
 type StubPlayerStore struct {
 	scores map[string]int
 	updateScoreCalls []string
-	players []Player
+	players League
 }
 
 func (s *StubPlayerStore) GetPlayerScore(name string) (int, error) {
@@ -58,11 +57,13 @@ func postScoreRequest(player string) (*http.Request, error) {
 
 
 func TestGETPlayerScore(t *testing.T) {
-	scoresMap := map[string]int {
-		"A": 20,
-		"B": 10,
-	}
-	server := NewPlayerServer(&StubPlayerStore{scoresMap, nil, nil})
+
+	initdata := `[{"Name": "A", "Wins": 20},{"Name": "B", "Wins": 10}]`
+	database, cleanDatabase := createTempFile(t, initdata)
+	defer cleanDatabase()
+
+	store := NewFileSystemPlayerStore(database)
+	server := NewPlayerServer(&store)
 	t.Run("Return correct score for A", func(t *testing.T) {
 		request, _ := getScoreRequest("A")
 		response := httptest.NewRecorder()
@@ -89,8 +90,12 @@ func TestGETPlayerScore(t *testing.T) {
 }
 
 func TestUpdatePlayerStore(t *testing.T) {
-	store := new(StubPlayerStore)
-	server := NewPlayerServer(store)
+	initdata := ``
+	database, cleanDatabase := createTempFile(t, initdata)
+	defer cleanDatabase()
+
+	store := NewFileSystemPlayerStore(database)
+	server := NewPlayerServer(&store)
 
 	t.Run("POST score should return accepted", func(t *testing.T) {
 		request, _ := postScoreRequest("C")
@@ -100,16 +105,21 @@ func TestUpdatePlayerStore(t *testing.T) {
 
 		assertRespondedStatusCode(t, response, http.StatusAccepted)
 
-		expectedScoreCalls := []string{"C"}
-		if !reflect.DeepEqual(store.updateScoreCalls, expectedScoreCalls) {
-			t.Fatalf("wrong update score calls, got %v, expected %v", store.updateScoreCalls, expectedScoreCalls)
+		expected := League{{"C", 1}}
+		if !reflect.DeepEqual(store.GetPlayers(), expected) {
+			t.Fatalf("wrong update score calls, got %v, expected %v", store.GetPlayers(), expected)
 		}
 	})
 }
 
 func TestUpdateAndShowPlayerScore(t *testing.T) {
-	store := &InMemoryStore{sync.Mutex{}, make(map[string]int)}
-	server := NewPlayerServer(store)
+	initdata := ``
+
+	database, cleanDatabase := createTempFile(t, initdata)
+	defer cleanDatabase()
+
+	store := NewFileSystemPlayerStore(database)
+	server := NewPlayerServer(&store)
 	player := "C"
 
 	request, _ := postScoreRequest(player)
@@ -147,7 +157,12 @@ func TestUpdateAndShowPlayerScore(t *testing.T) {
 }
 
 func TestLeague(t *testing.T) {
-	store := StubPlayerStore{}
+	initdata := ``
+
+	database, cleanDatabase := createTempFile(t, initdata)
+	defer cleanDatabase()
+
+	store := NewFileSystemPlayerStore(database)
 	server := NewPlayerServer(&store)
 
 	t.Run("/league should return list of players", func(t *testing.T) {
@@ -163,7 +178,6 @@ func TestLeague(t *testing.T) {
 			{"B", 1},
 			{"C", 1},
 		}
-		store.players = expected
 
 		request, _ = http.NewRequest(http.MethodGet, "/league", nil)
 		response := httptest.NewRecorder()

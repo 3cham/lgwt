@@ -43,7 +43,7 @@ func (p *PlayerServer) updateScore(w http.ResponseWriter, player string) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (p *PlayerServer) getPlayers() []Player {
+func (p *PlayerServer) getPlayers() League {
 	return p.store.GetPlayers()
 }
 

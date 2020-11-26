@@ -1,42 +1,60 @@
 package main
 
-import "sync"
+import (
+	"encoding/json"
+	"io"
+)
 
 type PlayerStore interface {
 	GetPlayerScore(name string) (int, error)
 	UpdatePlayerScore(name string)
-	GetPlayers() []Player
+	GetPlayers() League
 }
 
-type InMemoryStore struct {
-	lock sync.Mutex
-	scores map[string]int
+type FileSystemPlayerStore struct {
+	database io.ReadWriteSeeker
+	league League
 }
-func (s *InMemoryStore) GetPlayerScore(name string) (int, error) {
-	score, found := s.scores[name]
-	if !found {
+
+func (f *FileSystemPlayerStore) GetPlayers() League {
+	return f.league
+}
+
+func (f *FileSystemPlayerStore) GetPlayerScore(name string) (int, error) {
+	players := f.GetPlayers()
+
+	player := players.Find(name)
+	if player == nil {
 		return 0, ErrPlayerNotFound
-	}
-
-	return score, nil
-}
-
-func (s *InMemoryStore) UpdatePlayerScore(name string) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	currentScore, found := s.scores[name]
-
-	if !found {
-		s.scores[name] = 1
 	} else {
-		s.scores[name] = currentScore + 1
+		return player.Wins, nil
 	}
 }
 
-func (s *InMemoryStore) GetPlayers() []Player {
-	players := []Player{}
-	for player, score := range s.scores {
-		players = append(players, Player{player, score})
+func (f *FileSystemPlayerStore) UpdatePlayerScore(name string) {
+	players := f.GetPlayers()
+	player := players.Find(name)
+
+	if player == nil {
+		players = append(players, Player{name, 1})
+	} else {
+		player.Wins++
 	}
-	return players
+
+	f.league = players
+	f.database.Seek(0, 0)
+	json.NewEncoder(f.database).Encode(players)
+}
+
+func NewLeague(r io.ReadWriteSeeker) *League {
+	result := League{}
+	r.Seek(0, 0)
+	json.NewDecoder(r).Decode(&result)
+	return &result
+}
+
+func NewFileSystemPlayerStore(r io.ReadWriteSeeker) FileSystemPlayerStore{
+	store := FileSystemPlayerStore{r, nil}
+	store.league = *NewLeague(store.database)
+	return store
 }

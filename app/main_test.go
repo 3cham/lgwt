@@ -83,7 +83,6 @@ func TestGETPlayerScore(t *testing.T) {
 }
 
 func TestUpdatePlayerStore(t *testing.T) {
-
 	store := StubPlayerStore{make(map[string]int), []string{}}
 	server := &PlayerServer{&store}
 
@@ -121,5 +120,25 @@ func TestUpdateAndShowPlayerScore(t *testing.T) {
 
 		assertRespondedStatusCode(t, response, http.StatusOK)
 		assertRespondedScore(t, response, "3")
+	})
+}
+
+func TestLeague(t *testing.T) {
+	store := StubPlayerStore{}
+	server := PlayerServer{&store}
+
+	t.Run("/league should return list of players", func(t *testing.T) {
+		request, _ := postScoreRequest("A")
+		server.ServeHTTP(httptest.NewRecorder(), request)
+		request, _ = postScoreRequest("B")
+		server.ServeHTTP(httptest.NewRecorder(), request)
+		request, _ = postScoreRequest("C")
+		server.ServeHTTP(httptest.NewRecorder(), request)
+
+		request, _ = http.NewRequest(http.MethodGet, "/league", nil)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, request)
+
+		assertRespondedStatusCode(t, response, http.StatusOK)
 	})
 }

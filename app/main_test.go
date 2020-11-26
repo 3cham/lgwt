@@ -56,7 +56,7 @@ func TestGETPlayerScore(t *testing.T) {
 		"A": 20,
 		"B": 10,
 	}
-	server := &PlayerServer{&StubPlayerStore{scoresMap, nil}}
+	server := NewPlayerServer(&StubPlayerStore{scoresMap, nil})
 	t.Run("Return correct score for A", func(t *testing.T) {
 		request, _ := getScoreRequest("A")
 		response := httptest.NewRecorder()
@@ -83,8 +83,8 @@ func TestGETPlayerScore(t *testing.T) {
 }
 
 func TestUpdatePlayerStore(t *testing.T) {
-	store := StubPlayerStore{make(map[string]int), []string{}}
-	server := &PlayerServer{&store}
+	store := new(StubPlayerStore)
+	server := NewPlayerServer(store)
 
 	t.Run("POST score should return accepted", func(t *testing.T) {
 		request, _ := postScoreRequest("C")
@@ -102,8 +102,8 @@ func TestUpdatePlayerStore(t *testing.T) {
 }
 
 func TestUpdateAndShowPlayerScore(t *testing.T) {
-	store := InMemoryStore{sync.Mutex{}, make(map[string]int)}
-	server := &PlayerServer{&store}
+	store := &InMemoryStore{sync.Mutex{}, make(map[string]int)}
+	server := NewPlayerServer(store)
 	player := "C"
 
 	t.Run("Update and show score of the same play should return consistent result", func(t *testing.T) {
@@ -125,7 +125,7 @@ func TestUpdateAndShowPlayerScore(t *testing.T) {
 
 func TestLeague(t *testing.T) {
 	store := StubPlayerStore{}
-	server := PlayerServer{&store}
+	server := NewPlayerServer(&store)
 
 	t.Run("/league should return list of players", func(t *testing.T) {
 		request, _ := postScoreRequest("A")

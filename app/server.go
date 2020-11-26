@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
+
+var JsonContentType = "application/json"
 
 
 type PlayerServer struct {
@@ -22,7 +25,8 @@ func (p *PlayerServer) playerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *PlayerServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(p.getPlayers())
+	w.Header().Set("content-type", JsonContentType)
 }
 
 func (p *PlayerServer) showScore(w http.ResponseWriter, player string) {
@@ -37,6 +41,10 @@ func (p *PlayerServer) showScore(w http.ResponseWriter, player string) {
 func (p *PlayerServer) updateScore(w http.ResponseWriter, player string) {
 	p.store.UpdatePlayerScore(player)
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (p *PlayerServer) getPlayers() []Player {
+	return p.store.GetPlayers()
 }
 
 func NewPlayerServer(store PlayerStore) *PlayerServer {

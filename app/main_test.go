@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 type StubPlayerStore struct {
 	scores map[string]int
 	updateScoreCalls []string
+	players []Player
 }
 
 func (s *StubPlayerStore) GetPlayerScore(name string) (int, error) {
@@ -24,6 +26,10 @@ func (s *StubPlayerStore) GetPlayerScore(name string) (int, error) {
 
 func (s *StubPlayerStore) UpdatePlayerScore(name string) {
 	s.updateScoreCalls = append(s.updateScoreCalls, name)
+}
+
+func (s *StubPlayerStore) GetPlayers() []Player {
+	return s.players
 }
 
 func assertRespondedScore(t *testing.T, response *httptest.ResponseRecorder, expected string) {
@@ -56,7 +62,7 @@ func TestGETPlayerScore(t *testing.T) {
 		"A": 20,
 		"B": 10,
 	}
-	server := NewPlayerServer(&StubPlayerStore{scoresMap, nil})
+	server := NewPlayerServer(&StubPlayerStore{scoresMap, nil, nil})
 	t.Run("Return correct score for A", func(t *testing.T) {
 		request, _ := getScoreRequest("A")
 		response := httptest.NewRecorder()
@@ -106,13 +112,13 @@ func TestUpdateAndShowPlayerScore(t *testing.T) {
 	server := NewPlayerServer(store)
 	player := "C"
 
-	t.Run("Update and show score of the same play should return consistent result", func(t *testing.T) {
-		request, _ := postScoreRequest(player)
-		// Post 3 times win for C
-		server.ServeHTTP(httptest.NewRecorder(), request)
-		server.ServeHTTP(httptest.NewRecorder(), request)
-		server.ServeHTTP(httptest.NewRecorder(), request)
+	request, _ := postScoreRequest(player)
+	// Post 3 times win for C
+	server.ServeHTTP(httptest.NewRecorder(), request)
+	server.ServeHTTP(httptest.NewRecorder(), request)
+	server.ServeHTTP(httptest.NewRecorder(), request)
 
+	t.Run("Update and show score of the same play should return consistent result", func(t *testing.T) {
 		// Get C's score
 		request, _ = getScoreRequest(player)
 		response := httptest.NewRecorder()
@@ -120,6 +126,23 @@ func TestUpdateAndShowPlayerScore(t *testing.T) {
 
 		assertRespondedStatusCode(t, response, http.StatusOK)
 		assertRespondedScore(t, response, "3")
+	})
+
+	t.Run("Get league shoud return correct result", func(t *testing.T) {
+		request, _ = http.NewRequest(http.MethodGet, "/league", nil)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, request)
+
+		got := []Player{}
+
+		json.NewDecoder(response.Body).Decode(&got)
+		expected := []Player{
+			{"C", 3},
+		}
+
+		if !reflect.DeepEqual(got, expected) {
+			t.Fatalf("Wrong league table returned, expected %v, got %v", expected, got)
+		}
 	})
 }
 
@@ -135,10 +158,33 @@ func TestLeague(t *testing.T) {
 		request, _ = postScoreRequest("C")
 		server.ServeHTTP(httptest.NewRecorder(), request)
 
+		expected := []Player{
+			{"A", 1},
+			{"B", 1},
+			{"C", 1},
+		}
+		store.players = expected
+
 		request, _ = http.NewRequest(http.MethodGet, "/league", nil)
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, request)
-
 		assertRespondedStatusCode(t, response, http.StatusOK)
+		assertResponsedType(t, response, JsonContentType)
+		var got []Player
+		err := json.NewDecoder(response.Body).Decode(&got)
+		if err != nil {
+			t.Fatalf("Cannot parse the returned result from the endpoint")
+		}
+
+		if !reflect.DeepEqual(got, expected) {
+			t.Fatalf("Return player list is incorrect, expected %v, got %v", expected, got)
+		}
 	})
+}
+
+func assertResponsedType(t *testing.T, response *httptest.ResponseRecorder, expectedType string) {
+	gotType := response.Header().Get("content-type")
+	if gotType != expectedType {
+		t.Fatalf("Wrong response header for content-type, expected %q, got %q", expectedType, gotType)
+	}
 }

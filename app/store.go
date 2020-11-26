@@ -5,6 +5,7 @@ import "sync"
 type PlayerStore interface {
 	GetPlayerScore(name string) (int, error)
 	UpdatePlayerScore(name string)
+	GetPlayers() []Player
 }
 
 type InMemoryStore struct {
@@ -30,4 +31,12 @@ func (s *InMemoryStore) UpdatePlayerScore(name string) {
 	} else {
 		s.scores[name] = currentScore + 1
 	}
+}
+
+func (s *InMemoryStore) GetPlayers() []Player {
+	players := []Player{}
+	for player, score := range s.scores {
+		players = append(players, Player{player, score})
+	}
+	return players
 }

@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"sync"
 	"time"
 )
 
@@ -26,6 +27,29 @@ func sq(input <-chan int) <-chan int {
 		close(out)
 	}()
 	return out
+}
+
+func merge(chans ...<-chan int) <-chan int {
+	var wg = sync.WaitGroup{}
+
+	result := make(chan int)
+
+	getNum := func(c <-chan int){
+		for n := range c{
+			result <- n
+		}
+		wg.Done()
+	}
+	wg.Add(len(chans))
+	for _, c := range chans {
+		go getNum(c)
+	}
+
+	go func() {
+		wg.Wait()
+		close(result)
+	}()
+	return result
 }
 
 func sleepAndSquare(num int) int {

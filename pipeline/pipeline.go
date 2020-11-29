@@ -1,5 +1,9 @@
 package pipeline
 
+import (
+	"time"
+)
+
 func gen(nums ...int) <-chan int {
 	out := make(chan int)
 
@@ -17,9 +21,16 @@ func sq(input <-chan int) <-chan int {
 
 	go func() {
 		for num := range input {
-			out <- num * num
+			out <- sleepAndSquare(num)
 		}
 		close(out)
 	}()
 	return out
+}
+
+func sleepAndSquare(num int) int {
+	if num % 2 == 1 {
+		time.Sleep(1 * time.Second)
+	}
+	return num * num
 }

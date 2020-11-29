@@ -30,11 +30,11 @@ func TestGen(t *testing.T) {
 
 func TestSq(t *testing.T) {
 	t.Run("sq() should return squared numbers", func(t *testing.T) {
-		in := gen(1, 2)
+		in := gen(1, 2, 3, 4, 5, 6)
 		out := sq(in)
 
 		sortedOut := makeSortedArrFromChan(out)
-		var exected = makeSortedArrFromChan(gen(1, 4))
+		var exected = makeSortedArrFromChan(gen(1, 4, 9, 16, 25, 36))
 		if !reflect.DeepEqual(sortedOut, exected) {
 			t.Fatalf("gen() does not return expected results, expected %v, got %v", exected, sortedOut)
 		}

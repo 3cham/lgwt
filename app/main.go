@@ -12,7 +12,7 @@ var (
 	dbFileName = "game.db.json"
 )
 
-func main() {
+func main1() {
 	db, err := os.OpenFile(dbFileName, os.O_RDWR|os.O_CREATE, 666)
 
 	if err != nil {

@@ -13,7 +13,7 @@ func TestInitLogger(t *testing.T) {
 	t.Run("InitLogger() should return a default logger with two empty fields", func(t *testing.T) {
 		bufferWriter := &bytes.Buffer{}
 		InitLogger(bufferWriter)
-		Entry().Info("Test")
+		LLogger().Info("Test")
 		fmt.Println(bufferWriter)
 
 		logLine := bufferWriter.String()
@@ -32,7 +32,7 @@ func TestWithCid(t *testing.T) {
 		bufferWriter := &bytes.Buffer{}
 		InitLogger(bufferWriter)
 		WithCid("123")
-		Entry().Info("Test")
+		LLogger().Info("Test")
 
 		logLine := bufferWriter.String()
 		if !strings.Contains(logLine, "CID=123") {
@@ -50,7 +50,7 @@ func TestWithUsecase(t *testing.T) {
 		bufferWriter := &bytes.Buffer{}
 		InitLogger(bufferWriter)
 		WithUsecase("test-usecase")
-		Entry().Info("Test")
+		LLogger().Info("Test")
 
 		logLine := bufferWriter.String()
 		if !strings.Contains(logLine, "CID=") {
@@ -78,8 +78,8 @@ func TestAttachStdout(t *testing.T) {
 		WithUsecase("test-usecase")
 		AttachStdout()
 
-		Entry().Info("Test Info")
-		Entry().Debug("Only in file")
+		LLogger().Info("Test Info")
+		LLogger().Debug("Only in file")
 
 		// now get content from pipe
 		go func() {

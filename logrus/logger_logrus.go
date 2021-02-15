@@ -2,7 +2,6 @@ package logrus
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -15,13 +14,10 @@ import (
 var llog *log.Logger = nil
 var cid, usecaseName string = "", ""
 
-// Entry returns logrus entry with two different fields
-// to log with Entry().Info("")
-func Entry() *log.Entry {
-	return llog.WithFields(log.Fields{
-		"CID":     cid,
-		"Usecase": usecaseName,
-	})
+// LLogger returns logrus entry with two different fields
+// to log with LLogger().Info("")
+func LLogger() *log.Logger {
+	return llog
 }
 
 // InitLogger return a new logger with default TextFormatter that writes to a io.Writer
@@ -72,37 +68,7 @@ func (f *GaiaFormatter) Format(entry *log.Entry) ([]byte, error) {
 
 	b.WriteString(fmt.Sprintf(" [CID=%s Usecase=%s] ", cid, usecaseName))
 
-	b.WriteString(marshal(encode(entry.Message)))
+	b.WriteString(entry.Message)
 	b.WriteString("\n")
 	return b.Bytes(), nil
-}
-
-func marshal(o interface{}) string {
-	str, ok := o.(string)
-	if ok {
-		return str
-	}
-	data, err := json.Marshal(o)
-	if err != nil {
-		return fmt.Sprint(o)
-	}
-	return string(data)
-}
-
-func encode(message string) interface{} {
-	if data := encodeForJsonString(message); data != nil {
-		return data
-	} else {
-		return message
-	}
-}
-
-func encodeForJsonString(message string) map[string]interface{} {
-	// jsonstring
-	inInterface := make(map[string]interface{})
-	if err := json.Unmarshal([]byte(message), &inInterface); err != nil {
-		//fmt.Print("err !!!! " , err.Error())
-		return nil
-	}
-	return inInterface
 }

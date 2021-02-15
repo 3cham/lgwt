@@ -103,6 +103,10 @@ func TestAttachStdout(t *testing.T) {
 			t.Fatal("Not contain log content")
 		}
 
+		if strings.Contains(stdoutLogLine, "Only in file") {
+			t.Fatal("stdout should not log debug info")
+		}
+
 		fileLogLine := bufferWriter.String()
 		fmt.Println(fileLogLine)
 		if !strings.Contains(fileLogLine, "CID=123") {

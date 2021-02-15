@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -42,5 +43,18 @@ func TestSq(t *testing.T) {
 		if !reflect.DeepEqual(sortedOut, exected) {
 			t.Fatalf("gen() does not return expected results, expected %v, got %v", exected, sortedOut)
 		}
+	})
+}
+
+func TestSqHang(t *testing.T) {
+	t.Run("sq() should return squared numbers", func(t *testing.T) {
+		in := gen(1, 2, 3, 4, 5, 6)
+		out1 := sq(in)
+		out2 := sq(in)
+
+		out := merge(out1, out2)
+		c := <- out
+		fmt.Println(c)
+		return
 	})
 }

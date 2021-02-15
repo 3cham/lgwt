@@ -104,6 +104,7 @@ func TestAttachStdout(t *testing.T) {
 		}
 
 		fileLogLine := bufferWriter.String()
+		fmt.Println(fileLogLine)
 		if !strings.Contains(fileLogLine, "CID=123") {
 			t.Fatal("Not contain CID")
 		}
